@@ -894,3 +894,129 @@ form {
     height: calc(100% - 60px);
   }
 }
+
+/* Performance & Clustering Controls */
+.performance-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(18, 16, 14, 0.7);
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.cluster-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cluster-toggle-label input {
+  display: none;
+}
+
+.cluster-toggle-slider {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.cluster-toggle-slider::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cluster-toggle-label input:checked + .cluster-toggle-slider {
+  background-color: var(--spice-orange);
+  border-color: var(--spice-gold);
+}
+
+.cluster-toggle-label input:checked + .cluster-toggle-slider::after {
+  transform: translateX(11px);
+  background-color: #fff;
+  box-shadow: 0 0 6px var(--spice-gold);
+}
+
+.cluster-toggle-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.count-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--spice-gold);
+  background: rgba(245, 158, 11, 0.12);
+  padding: 2px 7px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Dune Interactive Cluster Badges */
+.dune-cluster-icon {
+  background: none !important;
+  border: none !important;
+}
+
+.dune-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  user-select: none;
+  backdrop-filter: blur(6px);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.dune-cluster:hover {
+  transform: scale(1.15);
+}
+
+.dune-cluster-small {
+  width: 32px;
+  height: 32px;
+  font-size: 11px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.95) 0%, rgba(180, 83, 9, 0.85) 100%);
+  border: 2px solid #fde68a;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.7);
+}
+
+.dune-cluster-medium {
+  width: 38px;
+  height: 38px;
+  font-size: 12px;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.95) 0%, rgba(194, 65, 12, 0.88) 100%);
+  border: 2px solid #fed7aa;
+  box-shadow: 0 0 16px rgba(249, 115, 22, 0.75);
+}
+
+.dune-cluster-large {
+  width: 44px;
+  height: 44px;
+  font-size: 13px;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.95) 0%, rgba(153, 27, 27, 0.90) 100%);
+  border: 2px solid #fca5a5;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+}
+

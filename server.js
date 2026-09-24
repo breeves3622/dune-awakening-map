@@ -1,3 +1,4 @@
+import compression from "compression";
 import express from "express";
 import fs from "fs";
 import path from "path";
@@ -23,8 +24,9 @@ if (!fs.existsSync(CUSTOM_MARKERS_FILE)) {
   fs.writeFileSync(CUSTOM_MARKERS_FILE, JSON.stringify([], null, 2), "utf8");
 }
 
+app.use(compression());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), { maxAge: "1h" }));
 
 // Dune: Awakening Maps Configuration
 const MAPS = {

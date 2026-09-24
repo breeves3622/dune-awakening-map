@@ -10,8 +10,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet & MarkerCluster CSS (Local high-performance assets) -->
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="vendor/markercluster/MarkerCluster.css" />
+  <link rel="stylesheet" href="vendor/markercluster/MarkerCluster.Default.css" />
   
   <!-- Custom CSS -->
   <link rel="stylesheet" href="styles.css" />
@@ -75,6 +77,14 @@
             <span class="divider">|</span>
             <button id="deselect-all-btn" class="text-btn">None</button>
           </div>
+        </div>
+        <div class="performance-toolbar">
+          <label class="cluster-toggle-label" title="Cluster dense nodes to eliminate lag and browser freezing">
+            <input type="checkbox" id="cluster-toggle" checked />
+            <span class="cluster-toggle-slider"></span>
+            <span class="cluster-toggle-text">Marker Clustering</span>
+          </label>
+          <span id="rendered-count-badge" class="count-pill">0</span>
         </div>
         <div id="categories-list" class="categories-list">
           <!-- Dynamic category list populated by JS -->
@@ -207,8 +217,9 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet & MarkerCluster JS (Local high-performance assets) -->
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="vendor/markercluster/leaflet.markercluster.js"></script>
   <!-- Application JS -->
   <script src="app.js"></script>
 </body>

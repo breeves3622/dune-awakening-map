@@ -4,11 +4,16 @@ class DuneMapApp {
     this.currentMapConfig = null;
     this.leafletMap = null;
     this.tileLayer = null;
-    this.markerLayerGroup = null;
+    this.markerClusterGroup = null;
+    this.standardLayerGroup = null;
+    this.customPinsLayerGroup = null;
+    this.clusteringEnabled = localStorage.getItem("dune_cluster_markers") !== "false";
     this.markersData = [];
+    this.markerInstancesById = new Map();
     this.taxonomy = null;
     this.activeTypes = new Set();
     this.searchQuery = "";
+    this.searchDebounceTimer = null;
     this.discoveredIds = new Set(
       JSON.parse(localStorage.getItem("dune_discovered_markers") || "[]")
     );
@@ -30,6 +35,12 @@ class DuneMapApp {
     this.categoriesList = document.getElementById("categories-list");
     this.selectAllBtn = document.getElementById("select-all-btn");
     this.deselectAllBtn = document.getElementById("deselect-all-btn");
+    this.clusterToggle = document.getElementById("cluster-toggle");
+    this.renderedCountBadge = document.getElementById("rendered-count-badge");
+
+    if (this.clusterToggle) {
+      this.clusterToggle.checked = this.clusteringEnabled;
+    }
 
     this.cursorCoords = document.getElementById("cursor-coords");
     this.mobileCoordsChip = document.getElementById("mobile-coords-chip");
@@ -70,10 +81,19 @@ class DuneMapApp {
   bindEvents() {
     this.mapSelect.addEventListener("change", (e) => this.switchMap(e.target.value));
 
+    if (this.clusterToggle) {
+      this.clusterToggle.addEventListener("change", (e) => {
+        this.toggleClustering(e.target.checked);
+      });
+    }
+
     this.searchInput.addEventListener("input", (e) => {
       this.searchQuery = e.target.value.toLowerCase().trim();
       this.clearSearchBtn.style.display = this.searchQuery ? "block" : "none";
-      this.renderMarkers();
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = setTimeout(() => {
+        this.renderMarkers();
+      }, 200);
     });
 
     this.clearSearchBtn.addEventListener("click", () => {
@@ -283,7 +303,45 @@ class DuneMapApp {
       noWrap: true,
     }).addTo(this.leafletMap);
 
-    this.markerLayerGroup = L.layerGroup().addTo(this.leafletMap);
+    if (this.customPinsLayerGroup) this.customPinsLayerGroup.clearLayers();
+    if (this.markerClusterGroup) this.markerClusterGroup.clearLayers();
+    if (this.standardLayerGroup) this.standardLayerGroup.clearLayers();
+
+    this.customPinsLayerGroup = L.layerGroup().addTo(this.leafletMap);
+    this.standardLayerGroup = L.layerGroup();
+
+    if (typeof L.markerClusterGroup === "function") {
+      this.markerClusterGroup = L.markerClusterGroup({
+        chunkedLoading: true,
+        chunkInterval: 60,
+        chunkDelay: 10,
+        maxClusterRadius: 40,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        disableClusteringAtZoom: 5,
+        iconCreateFunction: (cluster) => {
+          const count = cluster.getChildCount();
+          let size = "small";
+          if (count > 50) size = "medium";
+          if (count > 250) size = "large";
+          const formatted = count >= 1000 ? (count / 1000).toFixed(1) + "k" : count.toLocaleString();
+          return L.divIcon({
+            html: `<div class="dune-cluster dune-cluster-${size}"><span>${formatted}</span></div>`,
+            className: "dune-cluster-icon",
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+          });
+        },
+      });
+    }
+
+    if (this.clusteringEnabled && this.markerClusterGroup) {
+      this.leafletMap.addLayer(this.markerClusterGroup);
+    } else {
+      this.leafletMap.addLayer(this.standardLayerGroup);
+    }
+
     this.leafletMap.fitBounds(config.bounds);
 
     const updateCoords = (e) => {
@@ -438,14 +496,63 @@ class DuneMapApp {
     }
   }
 
-  renderMarkers() {
-    if (!this.markerLayerGroup || !this.leafletMap) return;
-    this.markerLayerGroup.clearLayers();
+  toggleClustering(enabled) {
+    this.clusteringEnabled = enabled;
+    localStorage.setItem("dune_cluster_markers", enabled ? "true" : "false");
+    if (this.clusterToggle) this.clusterToggle.checked = enabled;
 
-    if (this.activeTypes.size === 0 && (!this.markersData || this.markersData.filter(m => m.isCustom).length === 0)) {
+    if (this.leafletMap) {
+      if (this.markerClusterGroup && this.leafletMap.hasLayer(this.markerClusterGroup)) {
+        this.leafletMap.removeLayer(this.markerClusterGroup);
+      }
+      if (this.standardLayerGroup && this.leafletMap.hasLayer(this.standardLayerGroup)) {
+        this.leafletMap.removeLayer(this.standardLayerGroup);
+      }
+
+      if (enabled && this.markerClusterGroup) {
+        this.leafletMap.addLayer(this.markerClusterGroup);
+      } else if (this.standardLayerGroup) {
+        this.leafletMap.addLayer(this.standardLayerGroup);
+      }
+    }
+    this.renderMarkers();
+  }
+
+  createPopupHtml(item) {
+    const isDiscovered = this.discoveredIds.has(item.id);
+    const color = item.color || "#f59e0b";
+    return `
+      <div class="popup-container">
+        <div class="popup-cat" style="color: ${color}">${item.category || "General"}</div>
+        <div class="popup-title">${item.title}</div>
+        ${item.description ? `<div class="popup-desc">${item.description}</div>` : ""}
+        <div class="popup-coords">Coordinates: X: ${Math.round(item.x).toLocaleString()}, Y: ${Math.round(item.y).toLocaleString()}${item.z ? ` | Z: ${Math.round(item.z)}` : ""}</div>
+        <div class="popup-actions">
+          <button id="pop-disc-${item.id}" class="btn-discover ${isDiscovered ? "active" : ""}" onclick="window.duneApp.toggleDiscovered('${item.id}')">
+            ${isDiscovered ? "✓ Discovered" : "Mark Discovered"}
+          </button>
+          ${item.isCustom ? `
+            <button class="btn-edit" onclick="window.duneApp.editCustomPin('${item.id}')">Edit</button>
+            <button class="btn-delete" onclick="window.duneApp.deleteCustomPin('${item.id}')">Delete</button>
+          ` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  renderMarkers() {
+    if (!this.leafletMap) return;
+
+    if (this.markerClusterGroup) this.markerClusterGroup.clearLayers();
+    if (this.standardLayerGroup) this.standardLayerGroup.clearLayers();
+    if (this.customPinsLayerGroup) this.customPinsLayerGroup.clearLayers();
+    this.markerInstancesById.clear();
+
+    if (this.activeTypes.size === 0 && (!this.markersData || this.markersData.filter((m) => m.isCustom).length === 0)) {
       this.discoveryPercent.textContent = "0%";
       this.discoveryProgressFill.style.width = "0%";
       this.discoveryCount.textContent = "0 / 0 Discovered";
+      if (this.renderedCountBadge) this.renderedCountBadge.textContent = "0";
       return;
     }
 
@@ -466,6 +573,10 @@ class DuneMapApp {
       return true;
     });
 
+    const clusterMarkers = [];
+    const standardMarkers = [];
+    const customMarkers = [];
+
     filtered.forEach((item) => {
       totalVisible++;
       const isDiscovered = this.discoveredIds.has(item.id);
@@ -474,14 +585,12 @@ class DuneMapApp {
       const color = item.color || "#f59e0b";
       const iconChar = item.icon || "✦";
 
-      const iconHtml = `
-        <div class="dune-pin ${isDiscovered ? "discovered" : ""}" style="border-color: ${color}; box-shadow: 0 0 8px ${color}88">
-          <span style="color: ${color}">${iconChar}</span>
-        </div>
-      `;
-
       const customIcon = L.divIcon({
-        html: iconHtml,
+        html: `
+          <div id="pin-${item.id}" class="dune-pin ${isDiscovered ? "discovered" : ""}" style="border-color: ${color}; box-shadow: 0 0 8px ${color}88">
+            <span style="color: ${color}">${iconChar}</span>
+          </div>
+        `,
         className: "custom-leaflet-marker",
         iconSize: [28, 28],
         iconAnchor: [14, 14],
@@ -489,27 +598,36 @@ class DuneMapApp {
 
       const marker = L.marker([Number(item.y), Number(item.x)], { icon: customIcon });
 
-      const popupContent = `
-        <div class="popup-container">
-          <div class="popup-cat" style="color: ${color}">${item.category || "General"}</div>
-          <div class="popup-title">${item.title}</div>
-          ${item.description ? `<div class="popup-desc">${item.description}</div>` : ""}
-          <div class="popup-coords">Coordinates: X: ${Math.round(item.x).toLocaleString()}, Y: ${Math.round(item.y).toLocaleString()}${item.z ? ` | Z: ${Math.round(item.z)}` : ""}</div>
-          <div class="popup-actions">
-            <button class="btn-discover ${isDiscovered ? "active" : ""}" onclick="window.duneApp.toggleDiscovered('${item.id}')">
-              ${isDiscovered ? "✓ Discovered" : "Mark Discovered"}
-            </button>
-            ${item.isCustom ? `
-              <button class="btn-edit" onclick="window.duneApp.editCustomPin('${item.id}')">Edit</button>
-              <button class="btn-delete" onclick="window.duneApp.deleteCustomPin('${item.id}')">Delete</button>
-            ` : ""}
-          </div>
-        </div>
-      `;
+      // Lazy popup binding: HTML is compiled only when pin is clicked
+      marker.bindPopup(() => this.createPopupHtml(item), { maxWidth: 300 });
+      this.markerInstancesById.set(item.id, marker);
 
-      marker.bindPopup(popupContent, { maxWidth: 300 });
-      this.markerLayerGroup.addLayer(marker);
+      if (item.isCustom) {
+        customMarkers.push(marker);
+      } else if (this.clusteringEnabled && this.markerClusterGroup) {
+        clusterMarkers.push(marker);
+      } else {
+        standardMarkers.push(marker);
+      }
     });
+
+    // Add custom pins (always visible and unclustered)
+    if (this.customPinsLayerGroup && customMarkers.length > 0) {
+      customMarkers.forEach((m) => this.customPinsLayerGroup.addLayer(m));
+    }
+
+    // Add data-mined markers (chunked cluster loading or standard group)
+    if (this.clusteringEnabled && this.markerClusterGroup && clusterMarkers.length > 0) {
+      this.markerClusterGroup.addLayers(clusterMarkers);
+    } else if (this.standardLayerGroup && standardMarkers.length > 0) {
+      this.standardLayerGroup.addLayers
+        ? this.standardLayerGroup.addLayers(standardMarkers)
+        : standardMarkers.forEach((m) => this.standardLayerGroup.addLayer(m));
+    }
+
+    if (this.renderedCountBadge) {
+      this.renderedCountBadge.textContent = totalVisible.toLocaleString();
+    }
 
     const percent = totalVisible > 0 ? Math.round((totalDiscovered / totalVisible) * 100) : 0;
     this.discoveryPercent.textContent = `${percent}%`;
@@ -518,13 +636,43 @@ class DuneMapApp {
   }
 
   toggleDiscovered(id) {
-    if (this.discoveredIds.has(id)) {
-      this.discoveredIds.delete(id);
-    } else {
+    const isNowDiscovered = !this.discoveredIds.has(id);
+    if (isNowDiscovered) {
       this.discoveredIds.add(id);
+    } else {
+      this.discoveredIds.delete(id);
     }
     this.saveDiscoveries();
-    this.renderMarkers();
+
+    // Instant in-place DOM update without freezing or re-rendering all markers
+    const pinEl = document.getElementById(`pin-${id}`);
+    if (pinEl) {
+      pinEl.classList.toggle("discovered", isNowDiscovered);
+    }
+
+    const popBtn = document.getElementById(`pop-disc-${id}`);
+    if (popBtn) {
+      popBtn.classList.toggle("active", isNowDiscovered);
+      popBtn.textContent = isNowDiscovered ? "✓ Discovered" : "Mark Discovered";
+    }
+
+    this.updateDiscoveryStats();
+  }
+
+  updateDiscoveryStats() {
+    let totalVisible = 0;
+    let totalDiscovered = 0;
+    this.markersData.forEach((m) => {
+      if ((m.type && this.activeTypes.has(m.type)) || m.isCustom) {
+        totalVisible++;
+        if (this.discoveredIds.has(m.id)) totalDiscovered++;
+      }
+    });
+
+    const percent = totalVisible > 0 ? Math.round((totalDiscovered / totalVisible) * 100) : 0;
+    this.discoveryPercent.textContent = `${percent}%`;
+    this.discoveryProgressFill.style.width = `${percent}%`;
+    this.discoveryCount.textContent = `${totalDiscovered} / ${totalVisible.toLocaleString()} Discovered`;
   }
 
   openModal(x, y) {

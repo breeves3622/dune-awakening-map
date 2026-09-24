@@ -2,5 +2,8 @@ node_modules/
 tiles/*
 !tiles/.gitkeep
 data/custom-markers.json
+data/user-discoveries.json
+data/nodes/*
+!data/nodes/.gitkeep
 .DS_Store
 *.log
