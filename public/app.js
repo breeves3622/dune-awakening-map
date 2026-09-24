@@ -1,15 +1,3 @@
-// Category colors and icons
-const CATEGORY_META = {
-  "Spice Blows": { color: "#f59e0b", icon: "✦" },
-  "Bunkers & Labs": { color: "#3b82f6", icon: "⚲" },
-  "Crashed Ships": { color: "#ef4444", icon: "▲" },
-  "Water & Extraction": { color: "#06b6d4", icon: "💧" },
-  "Caves & POIs": { color: "#10b981", icon: "⛰" },
-  "Vendors & Trainers": { color: "#8b5cf6", icon: "⚔" },
-  "Fast Travel & Landmarks": { color: "#ec4899", icon: "◉" },
-  "Custom Pins": { color: "#eab308", icon: "★" },
-};
-
 class DuneMapApp {
   constructor() {
     this.maps = [];
@@ -18,7 +6,8 @@ class DuneMapApp {
     this.tileLayer = null;
     this.markerLayerGroup = null;
     this.markersData = [];
-    this.activeCategories = new Set(Object.keys(CATEGORY_META));
+    this.taxonomy = null;
+    this.activeTypes = new Set();
     this.searchQuery = "";
     this.discoveredIds = new Set(
       JSON.parse(localStorage.getItem("dune_discovered_markers") || "[]")
@@ -89,15 +78,16 @@ class DuneMapApp {
     });
 
     this.selectAllBtn.addEventListener("click", () => {
-      Object.keys(CATEGORY_META).forEach((c) => this.activeCategories.add(c));
-      this.renderCategories();
-      this.renderMarkers();
+      if (!this.taxonomy || !this.taxonomy.types) return;
+      Object.keys(this.taxonomy.types).forEach((t) => this.activeTypes.add(t));
+      this.renderTaxonomy();
+      this.loadMarkers();
     });
 
     this.deselectAllBtn.addEventListener("click", () => {
-      this.activeCategories.clear();
-      this.renderCategories();
-      this.renderMarkers();
+      this.activeTypes.clear();
+      this.renderTaxonomy();
+      this.loadMarkers();
     });
 
     this.resetDiscoveriesBtn.addEventListener("click", () => {
@@ -183,7 +173,7 @@ class DuneMapApp {
     }
   }
 
-  switchMap(mapId) {
+  async switchMap(mapId) {
     const config = this.maps.find((m) => m.id === mapId);
     if (!config) return;
     this.currentMapConfig = config;
@@ -208,10 +198,10 @@ class DuneMapApp {
       maxZoom: config.maxZoom || 6,
       zoomSnap: 0.5,
       zoomDelta: 0.5,
+      preferCanvas: true,
       attributionControl: false,
     });
 
-    // Use local tile caching endpoint
     const tileUrl = `/api/tiles/${config.id}/{z}/{y}/{x}.webp`;
 
     this.tileLayer = L.tileLayer(tileUrl, {
@@ -222,11 +212,9 @@ class DuneMapApp {
       noWrap: true,
     }).addTo(this.leafletMap);
 
-    // Create fresh marker layer group for this map instance
     this.markerLayerGroup = L.layerGroup().addTo(this.leafletMap);
     this.leafletMap.fitBounds(config.bounds);
 
-    // Update coordinates display on move / touch
     const updateCoords = (e) => {
       const x = Math.round(e.latlng.lng);
       const y = Math.round(e.latlng.lat);
@@ -238,72 +226,113 @@ class DuneMapApp {
     this.leafletMap.on("mousemove", updateCoords);
     this.leafletMap.on("click", updateCoords);
 
-    // Right-click or long-press to place pin
     this.leafletMap.on("contextmenu", (e) => {
       this.openModal(Math.round(e.latlng.lng), Math.round(e.latlng.lat));
     });
 
-    this.loadMarkers(mapId);
+    // Load rich taxonomy categories and then markers
+    await this.loadTaxonomy(mapId);
+    await this.loadMarkers();
   }
 
-  async loadMarkers(mapId) {
+  async loadTaxonomy(mapId) {
     try {
-      const res = await fetch(`/api/markers/${mapId}`);
-      this.markersData = await res.json();
+      const res = await fetch(`/api/taxonomy/${mapId}`);
+      this.taxonomy = await res.json();
 
-      // Ensure any category found in markers is known
-      this.markersData.forEach((m) => {
-        const cat = m.category || "Custom Pins";
-        if (!CATEGORY_META[cat]) {
-          CATEGORY_META[cat] = { color: "#a855f7", icon: "•" };
-        }
-        this.activeCategories.add(cat);
-      });
+      // Set initial active types from defaultOn
+      this.activeTypes.clear();
+      if (this.taxonomy && this.taxonomy.types) {
+        Object.entries(this.taxonomy.types).forEach(([key, val]) => {
+          if (val.defaultOn) this.activeTypes.add(key);
+        });
+      }
 
-      this.renderCategories();
-      this.renderMarkers();
+      this.renderTaxonomy();
     } catch (err) {
-      console.error("Error loading markers:", err);
+      console.error("Error loading taxonomy:", err);
     }
   }
 
-  renderCategories() {
-    const counts = {};
-    Object.keys(CATEGORY_META).forEach((c) => (counts[c] = 0));
+  renderTaxonomy() {
+    if (!this.taxonomy || !this.taxonomy.categories) {
+      this.categoriesList.innerHTML = `<div style="padding:10px; color:#999; font-size:12px;">Loading categories...</div>`;
+      return;
+    }
 
-    this.markersData.forEach((m) => {
-      const cat = m.category || "Custom Pins";
-      counts[cat] = (counts[cat] || 0) + 1;
-    });
+    this.categoriesList.innerHTML = this.taxonomy.categories
+      .map((cat, catIdx) => {
+        const typesHtml = cat.types
+          .map((t) => {
+            const isChecked = this.activeTypes.has(t.type);
+            return `
+              <label class="resource-row ${isChecked ? "active" : ""}" data-type="${t.type}">
+                <div class="resource-left">
+                  <input type="checkbox" class="type-checkbox" data-type="${t.type}" ${isChecked ? "checked" : ""} />
+                  <span class="resource-icon" style="color:${t.color}">${t.icon}</span>
+                  <span class="resource-label">${t.label}</span>
+                </div>
+                <span class="resource-count">${t.count.toLocaleString()}</span>
+              </label>
+            `;
+          })
+          .join("");
 
-    this.categoriesList.innerHTML = Object.entries(CATEGORY_META)
-      .map(([cat, meta]) => {
-        const count = counts[cat] || 0;
-        const isActive = this.activeCategories.has(cat);
+        const catActiveCount = cat.types.filter((t) => this.activeTypes.has(t.type)).length;
+        const isPartiallyOrFullyActive = catActiveCount > 0;
+
         return `
-          <div class="category-item ${isActive ? "" : "disabled"}" data-category="${cat}">
-            <div class="category-left">
-              <span class="category-dot" style="background-color: ${meta.color}"></span>
-              <span class="category-name">${cat}</span>
+          <div class="category-group" data-cat-idx="${catIdx}">
+            <div class="category-group-header">
+              <span class="group-title">${cat.name}</span>
+              <div class="group-header-right">
+                <span class="group-count">${cat.totalCount.toLocaleString()}</span>
+                <span class="group-toggle-arrow">▾</span>
+              </div>
             </div>
-            <span class="category-count">${count}</span>
+            <div class="category-group-body">
+              ${typesHtml}
+            </div>
           </div>
         `;
       })
       .join("");
 
-    this.categoriesList.querySelectorAll(".category-item").forEach((el) => {
-      el.addEventListener("click", () => {
-        const cat = el.dataset.category;
-        if (this.activeCategories.has(cat)) {
-          this.activeCategories.delete(cat);
-        } else {
-          this.activeCategories.add(cat);
-        }
-        this.renderCategories();
-        this.renderMarkers();
+    // Toggle accordions on header click
+    this.categoriesList.querySelectorAll(".category-group-header").forEach((header) => {
+      header.addEventListener("click", () => {
+        const group = header.closest(".category-group");
+        group.classList.toggle("collapsed");
       });
     });
+
+    // Checkbox changes
+    this.categoriesList.querySelectorAll(".type-checkbox").forEach((cb) => {
+      cb.addEventListener("change", (e) => {
+        const type = e.target.dataset.type;
+        if (e.target.checked) {
+          this.activeTypes.add(type);
+        } else {
+          this.activeTypes.delete(type);
+        }
+        const row = cb.closest(".resource-row");
+        if (row) row.classList.toggle("active", e.target.checked);
+        this.loadMarkers();
+      });
+    });
+  }
+
+  async loadMarkers() {
+    if (!this.currentMapConfig) return;
+    try {
+      const typeList = Array.from(this.activeTypes).join(",");
+      const url = `/api/markers/${this.currentMapConfig.id}${typeList ? `?types=${typeList}` : ""}`;
+      const res = await fetch(url);
+      this.markersData = await res.json();
+      this.renderMarkers();
+    } catch (err) {
+      console.error("Error loading markers:", err);
+    }
   }
 
   renderMarkers() {
@@ -314,13 +343,10 @@ class DuneMapApp {
     let totalDiscovered = 0;
 
     const filtered = this.markersData.filter((m) => {
-      const cat = m.category || "Custom Pins";
-      if (!this.activeCategories.has(cat)) return false;
-
       if (this.searchQuery) {
         const titleMatch = (m.title || "").toLowerCase().includes(this.searchQuery);
         const descMatch = (m.description || "").toLowerCase().includes(this.searchQuery);
-        const catMatch = cat.toLowerCase().includes(this.searchQuery);
+        const catMatch = (m.category || "").toLowerCase().includes(this.searchQuery);
         if (!titleMatch && !descMatch && !catMatch) return false;
       }
       return true;
@@ -331,10 +357,12 @@ class DuneMapApp {
       const isDiscovered = this.discoveredIds.has(item.id);
       if (isDiscovered) totalDiscovered++;
 
-      const meta = CATEGORY_META[item.category] || CATEGORY_META["Custom Pins"];
+      const color = item.color || "#f59e0b";
+      const iconChar = item.icon || "✦";
+
       const iconHtml = `
-        <div class="dune-pin ${isDiscovered ? "discovered" : ""}" style="border-color: ${meta.color}; box-shadow: 0 0 8px ${meta.color}88">
-          <span style="color: ${meta.color}">${meta.icon}</span>
+        <div class="dune-pin ${isDiscovered ? "discovered" : ""}" style="border-color: ${color}; box-shadow: 0 0 8px ${color}88">
+          <span style="color: ${color}">${iconChar}</span>
         </div>
       `;
 
@@ -345,15 +373,14 @@ class DuneMapApp {
         iconAnchor: [14, 14],
       });
 
-      // item.y = Latitude, item.x = Longitude in Leaflet Flat CRS
       const marker = L.marker([Number(item.y), Number(item.x)], { icon: customIcon });
 
       const popupContent = `
         <div class="popup-container">
-          <div class="popup-cat" style="color: ${meta.color}">${item.category}</div>
+          <div class="popup-cat" style="color: ${color}">${item.category || "General"}</div>
           <div class="popup-title">${item.title}</div>
           ${item.description ? `<div class="popup-desc">${item.description}</div>` : ""}
-          <div class="popup-coords">Coordinates: X: ${Math.round(item.x).toLocaleString()}, Y: ${Math.round(item.y).toLocaleString()}</div>
+          <div class="popup-coords">Coordinates: X: ${Math.round(item.x).toLocaleString()}, Y: ${Math.round(item.y).toLocaleString()}${item.z ? ` | Z: ${Math.round(item.z)}` : ""}</div>
           <div class="popup-actions">
             <button class="btn-discover ${isDiscovered ? "active" : ""}" onclick="window.duneApp.toggleDiscovered('${item.id}')">
               ${isDiscovered ? "✓ Discovered" : "Mark Discovered"}
@@ -371,7 +398,7 @@ class DuneMapApp {
     const percent = totalVisible > 0 ? Math.round((totalDiscovered / totalVisible) * 100) : 0;
     this.discoveryPercent.textContent = `${percent}%`;
     this.discoveryProgressFill.style.width = `${percent}%`;
-    this.discoveryCount.textContent = `${totalDiscovered} / ${totalVisible} Discovered`;
+    this.discoveryCount.textContent = `${totalDiscovered} / ${totalVisible.toLocaleString()} Discovered`;
   }
 
   toggleDiscovered(id) {
@@ -420,7 +447,7 @@ class DuneMapApp {
 
       if (res.ok) {
         this.closeModal();
-        await this.loadMarkers(this.currentMapConfig.id);
+        await this.loadMarkers();
       }
     } catch (err) {
       alert("Failed to save marker: " + err.message);
@@ -434,7 +461,7 @@ class DuneMapApp {
       if (res.ok) {
         this.discoveredIds.delete(id);
         this.saveDiscoveries();
-        await this.loadMarkers(this.currentMapConfig.id);
+        await this.loadMarkers();
       }
     } catch (err) {
       alert("Failed to delete marker: " + err.message);

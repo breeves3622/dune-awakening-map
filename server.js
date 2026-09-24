@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { DEFAULT_MARKERS } from "./defaults.js";
+import { getMapData } from "./node-manager.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -192,11 +193,44 @@ function readDefaultMarkers(mapId) {
   }
 }
 
-// API: Get markers for a map
-app.get("/api/markers/:mapId", (req, res) => {
+// API: Get taxonomy (categories and resource types with counts)
+app.get("/api/taxonomy/:mapId", async (req, res) => {
   const { mapId } = req.params;
-  const defaults = readDefaultMarkers(mapId);
+  try {
+    const mapData = await getMapData(mapId);
+    if (mapData) {
+      return res.json({ categories: mapData.categories, types: mapData.types });
+    }
+  } catch (err) {
+    console.error(`Error loading taxonomy for ${mapId}:`, err.message);
+  }
+  res.json({ categories: [], types: {} });
+});
+
+// API: Get markers for a map (supports type filtering or default POIs)
+app.get("/api/markers/:mapId", async (req, res) => {
+  const { mapId } = req.params;
+  const requestedTypes = req.query.types ? req.query.types.split(",").filter(Boolean) : null;
   const custom = readCustomMarkers().filter((m) => m.mapId === mapId);
+
+  try {
+    const mapData = await getMapData(mapId);
+    if (mapData && mapData.markers && mapData.markers.length > 0) {
+      let markers = mapData.markers;
+      if (requestedTypes && requestedTypes.length > 0) {
+        const typeSet = new Set(requestedTypes);
+        markers = markers.filter((m) => typeSet.has(m.type));
+      } else {
+        markers = markers.filter((m) => m.defaultOn);
+      }
+      return res.json([...markers, ...custom]);
+    }
+  } catch (err) {
+    console.error(`Error loading rich map nodes for ${mapId}:`, err.message);
+  }
+
+  // Fallback to static defaults
+  const defaults = readDefaultMarkers(mapId);
   res.json([...defaults, ...custom]);
 });
 

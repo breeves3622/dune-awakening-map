@@ -11,7 +11,7 @@ COPY package.json ./
 RUN npm install --omit=dev
 
 # Copy application files
-COPY server.js defaults.js ./
+COPY server.js defaults.js node-manager.js ./
 COPY public/ ./public/
 COPY data/ ./data/
 

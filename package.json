@@ -20,6 +20,7 @@
   "author": "breeves3622",
   "license": "MIT",
   "dependencies": {
+    "cbor-x": "^1.6.6",
     "express": "^4.21.2"
   }
 }
