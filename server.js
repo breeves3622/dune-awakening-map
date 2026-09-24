@@ -2,6 +2,7 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { DEFAULT_MARKERS } from "./defaults.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -171,13 +172,23 @@ function readCustomMarkers() {
 // Helper: Read default markers
 function readDefaultMarkers(mapId) {
   const defaultFile = path.join(DATA_DIR, "default-markers.json");
-  if (!fs.existsSync(defaultFile)) return [];
+  if (!fs.existsSync(defaultFile)) {
+    try {
+      fs.writeFileSync(defaultFile, JSON.stringify(DEFAULT_MARKERS, null, 2), "utf8");
+    } catch (e) {
+      console.error("Could not write default-markers.json:", e.message);
+    }
+    return DEFAULT_MARKERS.filter((m) => m.mapId === mapId);
+  }
   try {
     const raw = fs.readFileSync(defaultFile, "utf8");
     const all = JSON.parse(raw);
+    if (!Array.isArray(all) || all.length === 0) {
+      return DEFAULT_MARKERS.filter((m) => m.mapId === mapId);
+    }
     return all.filter((m) => m.mapId === mapId);
   } catch {
-    return [];
+    return DEFAULT_MARKERS.filter((m) => m.mapId === mapId);
   }
 }
 

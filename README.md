@@ -84,7 +84,9 @@ services:
       - OFFLINE_MODE=false
     command: >
       sh -c "apk add --no-cache git &&
-             git clone https://github.com/breeves3622/dune-awakening-map.git . &&
+             rm -rf /tmp/dune-repo &&
+             git clone https://github.com/breeves3622/dune-awakening-map.git /tmp/dune-repo &&
+             cp -r /tmp/dune-repo/* /app/ &&
              npm install --omit=dev &&
              node server.js"
     healthcheck:

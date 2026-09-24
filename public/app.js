@@ -16,7 +16,7 @@ class DuneMapApp {
     this.currentMapConfig = null;
     this.leafletMap = null;
     this.tileLayer = null;
-    this.markerLayerGroup = L.layerGroup();
+    this.markerLayerGroup = null;
     this.markersData = [];
     this.activeCategories = new Set(Object.keys(CATEGORY_META));
     this.searchQuery = "";
@@ -30,20 +30,30 @@ class DuneMapApp {
   }
 
   initElements() {
+    this.sidebar = document.getElementById("sidebar");
+    this.sidebarOverlay = document.getElementById("sidebar-overlay");
+    this.sidebarToggle = document.getElementById("sidebar-toggle");
+
     this.mapSelect = document.getElementById("map-select");
     this.searchInput = document.getElementById("search-input");
     this.clearSearchBtn = document.getElementById("clear-search");
     this.categoriesList = document.getElementById("categories-list");
     this.selectAllBtn = document.getElementById("select-all-btn");
     this.deselectAllBtn = document.getElementById("deselect-all-btn");
+
     this.cursorCoords = document.getElementById("cursor-coords");
+    this.mobileCoordsChip = document.getElementById("mobile-coords-chip");
+    this.mobileCurrentMap = document.getElementById("mobile-current-map");
+
     this.gotoX = document.getElementById("goto-x");
     this.gotoY = document.getElementById("goto-y");
     this.gotoBtn = document.getElementById("goto-btn");
+
     this.discoveryPercent = document.getElementById("discovery-percent");
     this.discoveryProgressFill = document.getElementById("discovery-progress-fill");
     this.discoveryCount = document.getElementById("discovery-count");
     this.resetDiscoveriesBtn = document.getElementById("reset-discoveries-btn");
+
     this.addPinBtn = document.getElementById("add-pin-btn");
     this.markerModal = document.getElementById("marker-modal");
     this.closeModalBtn = document.getElementById("close-modal-btn");
@@ -54,9 +64,12 @@ class DuneMapApp {
     this.modalX = document.getElementById("modal-x");
     this.modalY = document.getElementById("modal-y");
     this.modalDesc = document.getElementById("modal-desc");
-    this.sidebar = document.getElementById("sidebar");
-    this.sidebarToggle = document.getElementById("sidebar-toggle");
-    this.mobileMenuBtn = document.getElementById("mobile-menu-btn");
+
+    // Mobile nav buttons
+    this.mobBtnRegions = document.getElementById("mob-btn-regions");
+    this.mobBtnFilters = document.getElementById("mob-btn-filters");
+    this.mobBtnSearch = document.getElementById("mob-btn-search");
+    this.mobBtnAdd = document.getElementById("mob-btn-add");
   }
 
   bindEvents() {
@@ -88,7 +101,7 @@ class DuneMapApp {
     });
 
     this.resetDiscoveriesBtn.addEventListener("click", () => {
-      if (confirm("Reset all discovered markers progress for this map?")) {
+      if (confirm("Reset all marked discoveries for this map?")) {
         this.discoveredIds.clear();
         this.saveDiscoveries();
         this.renderMarkers();
@@ -117,13 +130,40 @@ class DuneMapApp {
       this.saveCustomPin();
     });
 
-    // Sidebar toggles
-    this.sidebarToggle.addEventListener("click", () => {
-      this.sidebar.classList.toggle("collapsed");
+    // Sidebar controls & Drawer for mobile
+    this.sidebarToggle.addEventListener("click", () => this.closeSidebar());
+    this.sidebarOverlay.addEventListener("click", () => this.closeSidebar());
+
+    // Mobile nav actions
+    this.mobBtnRegions?.addEventListener("click", () => {
+      this.openSidebar();
+      this.mapSelect.focus();
     });
-    this.mobileMenuBtn.addEventListener("click", () => {
-      this.sidebar.classList.toggle("collapsed");
+
+    this.mobBtnFilters?.addEventListener("click", () => {
+      this.openSidebar();
+      this.categoriesList.scrollIntoView({ behavior: "smooth" });
     });
+
+    this.mobBtnSearch?.addEventListener("click", () => {
+      this.openSidebar();
+      this.searchInput.focus();
+    });
+
+    this.mobBtnAdd?.addEventListener("click", () => {
+      const center = this.leafletMap ? this.leafletMap.getCenter() : { lat: 0, lng: 0 };
+      this.openModal(Math.round(center.lng), Math.round(center.lat));
+    });
+  }
+
+  openSidebar() {
+    this.sidebar.classList.add("open");
+    this.sidebarOverlay.classList.add("active");
+  }
+
+  closeSidebar() {
+    this.sidebar.classList.remove("open");
+    this.sidebarOverlay.classList.remove("active");
   }
 
   async loadMaps() {
@@ -148,6 +188,10 @@ class DuneMapApp {
     if (!config) return;
     this.currentMapConfig = config;
 
+    if (this.mobileCurrentMap) {
+      this.mobileCurrentMap.textContent = config.title;
+    }
+
     if (this.leafletMap) {
       this.leafletMap.remove();
       this.leafletMap = null;
@@ -163,10 +207,11 @@ class DuneMapApp {
       minZoom: config.minZoom || -2,
       maxZoom: config.maxZoom || 6,
       zoomSnap: 0.5,
+      zoomDelta: 0.5,
       attributionControl: false,
     });
 
-    // Use our local tile caching endpoint
+    // Use local tile caching endpoint
     const tileUrl = `/api/tiles/${config.id}/{z}/{y}/{x}.webp`;
 
     this.tileLayer = L.tileLayer(tileUrl, {
@@ -177,17 +222,23 @@ class DuneMapApp {
       noWrap: true,
     }).addTo(this.leafletMap);
 
-    this.markerLayerGroup.addTo(this.leafletMap);
+    // Create fresh marker layer group for this map instance
+    this.markerLayerGroup = L.layerGroup().addTo(this.leafletMap);
     this.leafletMap.fitBounds(config.bounds);
 
-    // Track mouse coordinates in Unreal Engine unit coordinates
-    this.leafletMap.on("mousemove", (e) => {
+    // Update coordinates display on move / touch
+    const updateCoords = (e) => {
       const x = Math.round(e.latlng.lng);
       const y = Math.round(e.latlng.lat);
-      this.cursorCoords.textContent = `X: ${x.toLocaleString()} | Y: ${y.toLocaleString()}`;
-    });
+      const str = `X: ${x.toLocaleString()} | Y: ${y.toLocaleString()}`;
+      if (this.cursorCoords) this.cursorCoords.textContent = str;
+      if (this.mobileCoordsChip) this.mobileCoordsChip.textContent = str;
+    };
 
-    // Right-click or shift-click to place pin
+    this.leafletMap.on("mousemove", updateCoords);
+    this.leafletMap.on("click", updateCoords);
+
+    // Right-click or long-press to place pin
     this.leafletMap.on("contextmenu", (e) => {
       this.openModal(Math.round(e.latlng.lng), Math.round(e.latlng.lat));
     });
@@ -199,6 +250,16 @@ class DuneMapApp {
     try {
       const res = await fetch(`/api/markers/${mapId}`);
       this.markersData = await res.json();
+
+      // Ensure any category found in markers is known
+      this.markersData.forEach((m) => {
+        const cat = m.category || "Custom Pins";
+        if (!CATEGORY_META[cat]) {
+          CATEGORY_META[cat] = { color: "#a855f7", icon: "•" };
+        }
+        this.activeCategories.add(cat);
+      });
+
       this.renderCategories();
       this.renderMarkers();
     } catch (err) {
@@ -246,6 +307,7 @@ class DuneMapApp {
   }
 
   renderMarkers() {
+    if (!this.markerLayerGroup || !this.leafletMap) return;
     this.markerLayerGroup.clearLayers();
 
     let totalVisible = 0;
@@ -271,7 +333,7 @@ class DuneMapApp {
 
       const meta = CATEGORY_META[item.category] || CATEGORY_META["Custom Pins"];
       const iconHtml = `
-        <div class="dune-pin ${isDiscovered ? "discovered" : ""}" style="border-color: ${meta.color}">
+        <div class="dune-pin ${isDiscovered ? "discovered" : ""}" style="border-color: ${meta.color}; box-shadow: 0 0 8px ${meta.color}88">
           <span style="color: ${meta.color}">${meta.icon}</span>
         </div>
       `;
@@ -279,18 +341,19 @@ class DuneMapApp {
       const customIcon = L.divIcon({
         html: iconHtml,
         className: "custom-leaflet-marker",
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
       });
 
-      const marker = L.marker([item.y, item.x], { icon: customIcon });
+      // item.y = Latitude, item.x = Longitude in Leaflet Flat CRS
+      const marker = L.marker([Number(item.y), Number(item.x)], { icon: customIcon });
 
       const popupContent = `
         <div class="popup-container">
           <div class="popup-cat" style="color: ${meta.color}">${item.category}</div>
           <div class="popup-title">${item.title}</div>
           ${item.description ? `<div class="popup-desc">${item.description}</div>` : ""}
-          <div class="popup-coords">Coordinates: X: ${item.x.toLocaleString()}, Y: ${item.y.toLocaleString()}</div>
+          <div class="popup-coords">Coordinates: X: ${Math.round(item.x).toLocaleString()}, Y: ${Math.round(item.y).toLocaleString()}</div>
           <div class="popup-actions">
             <button class="btn-discover ${isDiscovered ? "active" : ""}" onclick="window.duneApp.toggleDiscovered('${item.id}')">
               ${isDiscovered ? "✓ Discovered" : "Mark Discovered"}
@@ -300,7 +363,7 @@ class DuneMapApp {
         </div>
       `;
 
-      marker.bindPopup(popupContent);
+      marker.bindPopup(popupContent, { maxWidth: 300 });
       this.markerLayerGroup.addLayer(marker);
     });
 
