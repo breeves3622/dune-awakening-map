@@ -248,26 +248,79 @@ app.get("/api/markers/:mapId", async (req, res) => {
   res.json([...defaults, ...custom]);
 });
 
-// API: Add a custom marker
+const DISCOVERIES_FILE = path.join(DATA_DIR, "user-discoveries.json");
+if (!fs.existsSync(DISCOVERIES_FILE)) {
+  fs.writeFileSync(DISCOVERIES_FILE, JSON.stringify([], null, 2), "utf8");
+}
+
+function readDiscoveries() {
+  try {
+    return JSON.parse(fs.readFileSync(DISCOVERIES_FILE, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+// API: Get user discoveries (synced across devices)
+app.get("/api/discoveries", (req, res) => {
+  res.json(readDiscoveries());
+});
+
+// API: Save / Sync user discoveries
+app.post("/api/discoveries", (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) {
+    return res.status(400).json({ error: "Expected 'ids' array of discovered marker IDs" });
+  }
+
+  // Deduplicate and save
+  const uniqueIds = Array.from(new Set(ids));
+  fs.writeFileSync(DISCOVERIES_FILE, JSON.stringify(uniqueIds, null, 2), "utf8");
+  res.json({ success: true, count: uniqueIds.length });
+});
+
+// API: Add or update a custom marker
 app.post("/api/markers", (req, res) => {
-  const { mapId, title, description, category, x, y } = req.body;
+  const { id, mapId, title, description, category, x, y } = req.body;
   if (!mapId || !title || x === undefined || y === undefined) {
     return res.status(400).json({ error: "Missing required marker fields (mapId, title, x, y)" });
   }
 
+  let markers = readCustomMarkers();
+
+  // If ID provided and exists, update in-place
+  if (id) {
+    const existingIdx = markers.findIndex((m) => m.id === id);
+    if (existingIdx !== -1) {
+      markers[existingIdx] = {
+        ...markers[existingIdx],
+        title: String(title).trim(),
+        description: description ? String(description).trim() : "",
+        category: category || "Custom Pins",
+        x: Number(x),
+        y: Number(y),
+        updatedAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(CUSTOM_MARKERS_FILE, JSON.stringify(markers, null, 2), "utf8");
+      return res.json(markers[existingIdx]);
+    }
+  }
+
   const newMarker = {
-    id: "custom_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+    id: id || "custom_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
     mapId,
     title: String(title).trim(),
     description: description ? String(description).trim() : "",
     category: category || "Custom Pins",
+    type: "custom_pins",
+    icon: "★",
+    color: "#eab308",
     x: Number(x),
     y: Number(y),
     createdAt: new Date().toISOString(),
     isCustom: true,
   };
 
-  const markers = readCustomMarkers();
   markers.push(newMarker);
   fs.writeFileSync(CUSTOM_MARKERS_FILE, JSON.stringify(markers, null, 2), "utf8");
 
@@ -287,6 +340,43 @@ app.delete("/api/markers/:id", (req, res) => {
 
   fs.writeFileSync(CUSTOM_MARKERS_FILE, JSON.stringify(markers, null, 2), "utf8");
   res.json({ success: true, id });
+});
+
+// API: Export custom pins backup
+app.get("/api/pins/export", (req, res) => {
+  const markers = readCustomMarkers();
+  res.setHeader("Content-Disposition", 'attachment; filename="dune-pins-backup.json"');
+  res.setHeader("Content-Type", "application/json");
+  res.json(markers);
+});
+
+// API: Import custom pins backup
+app.post("/api/pins/import", (req, res) => {
+  const imported = req.body;
+  if (!Array.isArray(imported)) {
+    return res.status(400).json({ error: "Expected JSON array of marker objects" });
+  }
+
+  const existing = readCustomMarkers();
+  const existingIds = new Set(existing.map((m) => m.id));
+  let addedCount = 0;
+
+  imported.forEach((pin) => {
+    if (!pin.mapId || !pin.title || pin.x === undefined || pin.y === undefined) return;
+    const pinId = pin.id && !existingIds.has(pin.id) ? pin.id : "custom_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+    existing.push({
+      ...pin,
+      id: pinId,
+      type: "custom_pins",
+      isCustom: true,
+      category: pin.category || "Custom Pins",
+    });
+    existingIds.add(pinId);
+    addedCount++;
+  });
+
+  fs.writeFileSync(CUSTOM_MARKERS_FILE, JSON.stringify(existing, null, 2), "utf8");
+  res.json({ success: true, imported: addedCount, total: existing.length });
 });
 
 // API: Tile proxy with automatic local caching

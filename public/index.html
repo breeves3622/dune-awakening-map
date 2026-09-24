@@ -83,17 +83,28 @@
 
       <!-- Custom Pin Action -->
       <div class="control-section custom-actions">
-        <button id="add-pin-btn" class="btn btn-primary">
+        <button id="add-pin-btn" class="btn btn-primary" style="margin-bottom: 8px;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Add Custom Marker
         </button>
+        <div class="pin-management-row">
+          <button id="export-pins-btn" class="btn btn-secondary btn-sm" type="button" title="Download backup of custom markers">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Export Pins
+          </button>
+          <label class="btn btn-secondary btn-sm" title="Upload backup of custom markers" style="cursor: pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            Import
+            <input type="file" id="import-pins-input" accept=".json" style="display: none;" />
+          </label>
+        </div>
       </div>
 
       <!-- Footer Info -->
       <div class="sidebar-footer">
         <div class="server-status">
           <span class="status-dot"></span>
-          <span>Docker Server Active</span>
+          <span>Docker Server & Cloud Sync Active</span>
         </div>
       </div>
     </aside>
@@ -152,10 +163,11 @@
   <div id="marker-modal" class="modal-backdrop" style="display: none;">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 class="modal-title">New Marker</h3>
+        <h3 id="modal-heading" class="modal-title">New Marker</h3>
         <button id="close-modal-btn" class="icon-btn">&times;</button>
       </div>
       <form id="marker-form">
+        <input type="hidden" id="modal-pin-id" />
         <div class="form-group">
           <label>Title *</label>
           <input type="text" id="modal-title" required placeholder="e.g. Rich Spice Deposit, Clan Base" />

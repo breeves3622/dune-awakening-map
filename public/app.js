@@ -15,6 +15,7 @@ class DuneMapApp {
 
     this.initElements();
     this.bindEvents();
+    this.syncDiscoveries();
     this.loadMaps();
   }
 
@@ -44,7 +45,12 @@ class DuneMapApp {
     this.resetDiscoveriesBtn = document.getElementById("reset-discoveries-btn");
 
     this.addPinBtn = document.getElementById("add-pin-btn");
+    this.exportPinsBtn = document.getElementById("export-pins-btn");
+    this.importPinsInput = document.getElementById("import-pins-input");
+
     this.markerModal = document.getElementById("marker-modal");
+    this.modalHeading = document.getElementById("modal-heading");
+    this.modalPinId = document.getElementById("modal-pin-id");
     this.closeModalBtn = document.getElementById("close-modal-btn");
     this.cancelModalBtn = document.getElementById("cancel-modal-btn");
     this.markerForm = document.getElementById("marker-form");
@@ -92,7 +98,7 @@ class DuneMapApp {
     });
 
     this.resetDiscoveriesBtn.addEventListener("click", () => {
-      if (confirm("Reset all marked discoveries for this map?")) {
+      if (confirm("Reset all marked discoveries for this map across your devices?")) {
         this.discoveredIds.clear();
         this.saveDiscoveries();
         this.renderMarkers();
@@ -121,6 +127,37 @@ class DuneMapApp {
       this.saveCustomPin();
     });
 
+    // Export & Import Pin Backups
+    this.exportPinsBtn?.addEventListener("click", () => {
+      window.location.href = "/api/pins/export";
+    });
+
+    this.importPinsInput?.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const res = await fetch("/api/pins/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(json),
+        });
+        const result = await res.json();
+        if (result.success) {
+          alert(`Successfully imported ${result.imported} custom pins!`);
+          this.activeTypes.add("custom_pins");
+          await this.loadMarkers();
+        } else {
+          alert("Import failed: " + (result.error || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Invalid backup file: " + err.message);
+      } finally {
+        e.target.value = "";
+      }
+    });
+
     // Sidebar controls & Drawer for mobile
     this.sidebarToggle.addEventListener("click", () => this.closeSidebar());
     this.sidebarOverlay.addEventListener("click", () => this.closeSidebar());
@@ -145,6 +182,39 @@ class DuneMapApp {
       const center = this.leafletMap ? this.leafletMap.getCenter() : { lat: 0, lng: 0 };
       this.openModal(Math.round(center.lng), Math.round(center.lat));
     });
+  }
+
+  async syncDiscoveries() {
+    try {
+      const local = JSON.parse(localStorage.getItem("dune_discovered_markers") || "[]");
+      const res = await fetch("/api/discoveries");
+      if (res.ok) {
+        const remote = await res.json();
+        const merged = Array.from(new Set([...local, ...remote]));
+        this.discoveredIds = new Set(merged);
+        localStorage.setItem("dune_discovered_markers", JSON.stringify(merged));
+        if (merged.length > remote.length) {
+          fetch("/api/discoveries", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: merged }),
+          }).catch(() => {});
+        }
+        this.renderMarkers();
+      }
+    } catch (e) {
+      console.warn("Could not sync discoveries:", e);
+    }
+  }
+
+  saveDiscoveries() {
+    const ids = [...this.discoveredIds];
+    localStorage.setItem("dune_discovered_markers", JSON.stringify(ids));
+    fetch("/api/discoveries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }).catch(() => {});
   }
 
   openSidebar() {
@@ -231,7 +301,6 @@ class DuneMapApp {
       this.openModal(Math.round(e.latlng.lng), Math.round(e.latlng.lat));
     });
 
-    // Load rich taxonomy categories and then markers
     await this.loadTaxonomy(mapId);
     await this.loadMarkers();
   }
@@ -241,7 +310,6 @@ class DuneMapApp {
       const res = await fetch(`/api/taxonomy/${mapId}`);
       this.taxonomy = await res.json();
 
-      // Set initial active types from defaultOn
       this.activeTypes.clear();
       if (this.taxonomy && this.taxonomy.types) {
         Object.entries(this.taxonomy.types).forEach(([key, val]) => {
@@ -273,7 +341,7 @@ class DuneMapApp {
                   <span class="resource-icon" style="color:${t.color}">${t.icon}</span>
                   <span class="resource-label">${t.label}</span>
                 </div>
-                <span class="resource-count">${t.count.toLocaleString()}</span>
+                <span class="resource-count">${t.count ? t.count.toLocaleString() : "•"}</span>
               </label>
             `;
           })
@@ -291,7 +359,7 @@ class DuneMapApp {
                 <button type="button" class="group-toggle-btn ${someCatActive ? "active" : ""}" data-cat-idx="${catIdx}">
                   ${allCatActive ? "None" : "All"}
                 </button>
-                <span class="group-count">${cat.totalCount.toLocaleString()}</span>
+                <span class="group-count">${cat.totalCount ? cat.totalCount.toLocaleString() : ""}</span>
                 <span class="group-toggle-arrow">▾</span>
               </div>
             </div>
@@ -385,7 +453,6 @@ class DuneMapApp {
     let totalDiscovered = 0;
 
     const filtered = this.markersData.filter((m) => {
-      // Must be an active type or a custom user marker
       if (m.type && !this.activeTypes.has(m.type) && !m.isCustom) {
         return false;
       }
@@ -432,7 +499,10 @@ class DuneMapApp {
             <button class="btn-discover ${isDiscovered ? "active" : ""}" onclick="window.duneApp.toggleDiscovered('${item.id}')">
               ${isDiscovered ? "✓ Discovered" : "Mark Discovered"}
             </button>
-            ${item.isCustom ? `<button class="btn-delete" onclick="window.duneApp.deleteCustomPin('${item.id}')">Delete</button>` : ""}
+            ${item.isCustom ? `
+              <button class="btn-edit" onclick="window.duneApp.editCustomPin('${item.id}')">Edit</button>
+              <button class="btn-delete" onclick="window.duneApp.deleteCustomPin('${item.id}')">Delete</button>
+            ` : ""}
           </div>
         </div>
       `;
@@ -441,7 +511,6 @@ class DuneMapApp {
       this.markerLayerGroup.addLayer(marker);
     });
 
-    // Update Progress Bar
     const percent = totalVisible > 0 ? Math.round((totalDiscovered / totalVisible) * 100) : 0;
     this.discoveryPercent.textContent = `${percent}%`;
     this.discoveryProgressFill.style.width = `${percent}%`;
@@ -458,15 +527,27 @@ class DuneMapApp {
     this.renderMarkers();
   }
 
-  saveDiscoveries() {
-    localStorage.setItem("dune_discovered_markers", JSON.stringify([...this.discoveredIds]));
-  }
-
   openModal(x, y) {
+    if (this.modalPinId) this.modalPinId.value = "";
+    if (this.modalHeading) this.modalHeading.textContent = "New Marker";
     this.modalX.value = x;
     this.modalY.value = y;
     this.modalTitle.value = "";
     this.modalDesc.value = "";
+    this.markerModal.style.display = "flex";
+    this.modalTitle.focus();
+  }
+
+  editCustomPin(id) {
+    const pin = this.markersData.find((m) => m.id === id);
+    if (!pin) return;
+    if (this.modalPinId) this.modalPinId.value = pin.id;
+    if (this.modalHeading) this.modalHeading.textContent = "Edit Marker";
+    this.modalTitle.value = pin.title || "";
+    this.modalCategory.value = pin.category || "Custom Pins";
+    this.modalX.value = pin.x;
+    this.modalY.value = pin.y;
+    this.modalDesc.value = pin.description || "";
     this.markerModal.style.display = "flex";
     this.modalTitle.focus();
   }
@@ -477,6 +558,7 @@ class DuneMapApp {
 
   async saveCustomPin() {
     const newMarker = {
+      id: this.modalPinId?.value || undefined,
       mapId: this.currentMapConfig.id,
       title: this.modalTitle.value,
       category: this.modalCategory.value,
@@ -494,6 +576,7 @@ class DuneMapApp {
 
       if (res.ok) {
         this.closeModal();
+        this.activeTypes.add("custom_pins");
         await this.loadMarkers();
       }
     } catch (err) {

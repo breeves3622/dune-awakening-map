@@ -201,6 +201,25 @@ export async function getMapData(mapId) {
     }
   }
 
+  // Always include Custom Pins in taxonomy
+  const customPinsDef = {
+    type: "custom_pins",
+    cat: "Custom Pins",
+    label: "Custom User Pins",
+    icon: "★",
+    color: "#eab308",
+    defaultOn: true,
+    count: 0,
+  };
+  typesMap["custom_pins"] = customPinsDef;
+  if (!categoriesMap["Custom Pins"]) {
+    categoriesMap["Custom Pins"] = {
+      name: "Custom Pins",
+      types: [customPinsDef],
+      totalCount: 0,
+    };
+  }
+
   const result = {
     mapId,
     categories: Object.values(categoriesMap),

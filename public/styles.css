@@ -416,6 +416,23 @@ html, body {
   flex-shrink: 0;
 }
 
+.pin-management-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.pin-management-row button,
+.pin-management-row label {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;
