@@ -1,0 +1,155 @@
+[
+  {
+    "id": "def_hagga_1",
+    "mapId": "survival_1",
+    "title": "Ecological Testing Station 07",
+    "category": "Bunkers & Labs",
+    "description": "Imperial testing laboratory. Contains botanical research data, water storage filters, and high-tech components.",
+    "x": -152400,
+    "y": 68200
+  },
+  {
+    "id": "def_hagga_2",
+    "mapId": "survival_1",
+    "title": "Research Outpost Beta",
+    "category": "Bunkers & Labs",
+    "description": "Old botanical testing station. Requires laser cutter to breach secondary bulkhead.",
+    "x": 82000,
+    "y": 142000
+  },
+  {
+    "id": "def_hagga_3",
+    "mapId": "survival_1",
+    "title": "Smuggler Heavy Corvette Wreck",
+    "category": "Crashed Ships",
+    "description": "Crashed cargo hauler. Heavy salvage potential, high radiation zone in reactor core.",
+    "x": -74500,
+    "y": -128000
+  },
+  {
+    "id": "def_hagga_4",
+    "mapId": "survival_1",
+    "title": "Harkonnen Frigate Debris Field",
+    "category": "Crashed Ships",
+    "description": "Scattered fuselage sections. Guarded by scavengers. Rich in composite plating and energy cells.",
+    "x": 194000,
+    "y": -45000
+  },
+  {
+    "id": "def_hagga_5",
+    "mapId": "survival_1",
+    "title": "Deep Sand Basin Blow Alpha",
+    "category": "Spice Blows",
+    "description": "Pre-spice mass eruption site. High sandworm hazard; bring thumper decoy.",
+    "x": -210000,
+    "y": -220000
+  },
+  {
+    "id": "def_hagga_6",
+    "mapId": "survival_1",
+    "title": "Eastern Dune Field Spice Mass",
+    "category": "Spice Blows",
+    "description": "Active spice field. Periodic eruptions yield high purity raw melange.",
+    "x": 130000,
+    "y": -180000
+  },
+  {
+    "id": "def_hagga_7",
+    "mapId": "survival_1",
+    "title": "Ancient Qanat Siphon Well",
+    "category": "Water & Extraction",
+    "description": "Deep subterranean water basin. Provides reliable dew-condenser recharge.",
+    "x": -95000,
+    "y": 85000
+  },
+  {
+    "id": "def_hagga_8",
+    "mapId": "survival_1",
+    "title": "Wind-Trap Ridge Extraction Site",
+    "category": "Water & Extraction",
+    "description": "High altitude cliff face suited for large scale atmospheric moisture collection.",
+    "x": 22000,
+    "y": 185000
+  },
+  {
+    "id": "def_hagga_9",
+    "mapId": "survival_1",
+    "title": "Sietch Outlier Shelter",
+    "category": "Caves & POIs",
+    "description": "Natural rock overhang providing shade and respite from Coriolis storms.",
+    "x": -185000,
+    "y": -35000
+  },
+  {
+    "id": "def_hagga_10",
+    "mapId": "survival_1",
+    "title": "Vermilion Gorge Pass",
+    "category": "Caves & POIs",
+    "description": "Narrow canyon path connecting northern dunes to central basin. Low worm threat.",
+    "x": 45000,
+    "y": -15000
+  },
+  {
+    "id": "def_hagga_11",
+    "mapId": "survival_1",
+    "title": "Smuggler Black Market Merchant",
+    "category": "Vendors & Trainers",
+    "description": "Independent trader dealing in weapon schematics, water rings, and contraband gear.",
+    "x": -110000,
+    "y": 20000
+  },
+  {
+    "id": "def_hagga_12",
+    "mapId": "survival_1",
+    "title": "Swordmaster Training Enclave",
+    "category": "Vendors & Trainers",
+    "description": "Ginaz sword combat master. Unlocks melee stance skills and defensive abilities.",
+    "x": 75000,
+    "y": 95000
+  },
+  {
+    "id": "def_hagga_13",
+    "mapId": "survival_1",
+    "title": "The High Anvil Overlook",
+    "category": "Fast Travel & Landmarks",
+    "description": "Major geographical landmark visible across Hagga Basin.",
+    "x": 0,
+    "y": 50000
+  },
+  {
+    "id": "def_hagga_14",
+    "mapId": "survival_1",
+    "title": "Southern Gateway Beacon",
+    "category": "Fast Travel & Landmarks",
+    "description": "Ornithopter waypoint and fast travel transit point.",
+    "x": -160000,
+    "y": -280000
+  },
+  {
+    "id": "def_deep_1",
+    "mapId": "deepdesert_1",
+    "title": "Great Erg Central Blow",
+    "category": "Spice Blows",
+    "description": "Massive continuous spice eruption. Extreme Shai-Hulud activity.",
+    "x": 0,
+    "y": 0
+  },
+  {
+    "id": "def_deep_2",
+    "mapId": "deepdesert_1",
+    "title": "Lost Dreadnought Graveyard",
+    "category": "Crashed Ships",
+    "description": "Massive military cruiser hull half-submerged in the shifting sands.",
+    "x": 250000,
+    "y": -350000
+  },
+  {
+    "id": "def_deep_3",
+    "mapId": "deepdesert_1",
+    "title": "Ancient Spice Silo Complex",
+    "category": "Bunkers & Labs",
+    "description": "Sub-surface vault holding preserved guild navigation fuel caches.",
+    "x": -300000,
+    "y": 280000
+  }
+]

@@ -1,0 +1,6 @@
+node_modules/
+tiles/*
+!tiles/.gitkeep
+data/custom-markers.json
+.DS_Store
+*.log

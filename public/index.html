@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dune: Awakening - Interactive Map</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Collapsible Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-badge">DA</div>
+          <div>
+            <h1 class="brand-title">ARRAKIS MAP</h1>
+            <span class="brand-sub">Self-Hosted Companion</span>
+          </div>
+        </div>
+        <button id="sidebar-toggle" class="icon-btn" title="Toggle Sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+      </div>
+
+      <!-- Map Selector -->
+      <div class="control-section">
+        <label class="section-label">SELECT MAP REGION</label>
+        <select id="map-select" class="custom-select"></select>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="control-section">
+        <div class="search-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="search-input" placeholder="Search POIs, caves, labs, wrecks..." />
+          <button id="clear-search" class="clear-btn" style="display: none;">&times;</button>
+        </div>
+      </div>
+
+      <!-- Discovery Progress Tracker -->
+      <div class="control-section discovery-section">
+        <div class="discovery-header">
+          <span class="section-label">DISCOVERY PROGRESS</span>
+          <span id="discovery-percent" class="discovery-badge">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="discovery-progress-fill" class="progress-bar-fill"></div>
+        </div>
+        <div class="discovery-stats">
+          <span id="discovery-count">0 / 0 Discovered</span>
+          <button id="reset-discoveries-btn" class="text-btn">Reset</button>
+        </div>
+      </div>
+
+      <!-- Categories & Filters -->
+      <div class="control-section filters-section">
+        <div class="filters-header">
+          <span class="section-label">CATEGORIES</span>
+          <div class="filter-actions">
+            <button id="select-all-btn" class="text-btn">All</button>
+            <span class="divider">|</span>
+            <button id="deselect-all-btn" class="text-btn">None</button>
+          </div>
+        </div>
+        <div id="categories-list" class="categories-list">
+          <!-- Dynamic category list populated by JS -->
+        </div>
+      </div>
+
+      <!-- Custom Pin Action -->
+      <div class="control-section custom-actions">
+        <button id="add-pin-btn" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Add Custom Marker
+        </button>
+      </div>
+
+      <!-- Footer Info -->
+      <div class="sidebar-footer">
+        <div class="server-status">
+          <span class="status-dot"></span>
+          <span>Docker Server Active</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Map Canvas Area -->
+    <main class="map-container">
+      <div id="map"></div>
+
+      <!-- Floating HUD: Coordinates & Navigation -->
+      <div class="floating-hud">
+        <div class="hud-item coords-hud">
+          <span class="hud-label">COORDINATES (UNREAL UNITS)</span>
+          <span id="cursor-coords" class="hud-value">X: 0 | Y: 0</span>
+        </div>
+        
+        <div class="hud-item goto-hud">
+          <input type="number" id="goto-x" placeholder="X" />
+          <input type="number" id="goto-y" placeholder="Y" />
+          <button id="goto-btn" class="btn-sm">Go To</button>
+        </div>
+
+        <button id="mobile-menu-btn" class="icon-btn mobile-only">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: Add Custom Marker -->
+  <div id="marker-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">New Marker</h3>
+        <button id="close-modal-btn" class="icon-btn">&times;</button>
+      </div>
+      <form id="marker-form">
+        <div class="form-group">
+          <label>Title *</label>
+          <input type="text" id="modal-title" required placeholder="e.g. Rich Spice Deposit, Clan Base" />
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="modal-category">
+            <option value="Spice Blows">Spice Blows</option>
+            <option value="Bunkers & Labs">Bunkers & Labs</option>
+            <option value="Crashed Ships">Crashed Ships</option>
+            <option value="Water & Extraction">Water & Extraction</option>
+            <option value="Caves & POIs">Caves & POIs</option>
+            <option value="Vendors & Trainers">Vendors & Trainers</option>
+            <option value="Custom Pins" selected>Custom Pins</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>X (Coordinate)</label>
+            <input type="number" id="modal-x" required />
+          </div>
+          <div class="form-group">
+            <label>Y (Coordinate)</label>
+            <input type="number" id="modal-y" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes / Description</label>
+          <textarea id="modal-desc" rows="3" placeholder="Access code, enemy threat level, respawn time..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancel-modal-btn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Pin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Application JS -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+services:
+  dune-map:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dune-awakening-map
+    restart: unless-stopped
+    ports:
+      - "${MAP_PORT:-8080}:8080"
+    volumes:
+      # Persistent marker database and user customizations
+      - ./data:/app/data
+      # Cached map tiles (tiles are stored on disk as you browse)
+      - ./tiles:/app/tiles
+    environment:
+      - PORT=8080
+      - NODE_ENV=production
+      # Set to 'true' if you only want to serve pre-cached tiles without querying upstream CDN
+      - OFFLINE_MODE=false
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

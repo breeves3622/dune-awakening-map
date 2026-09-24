@@ -1,0 +1,25 @@
+{
+  "name": "dune-awakening-map",
+  "version": "1.0.0",
+  "description": "Self-hosted interactive map for Dune: Awakening with offline tile caching and marker management",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "dune-awakening",
+    "interactive-map",
+    "leaflet",
+    "self-hosted",
+    "docker",
+    "portainer",
+    "gaming-companion"
+  ],
+  "author": "breeves3622",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
