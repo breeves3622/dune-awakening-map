@@ -26,9 +26,9 @@ export const MAP_NODES_CONFIG = {
 export const TYPE_DEFINITIONS = {
   // Bunkers & Outposts
   ecolab: { cat: "Bunkers & Outposts", label: "Imperial Testing Station", icon: "⚲", color: "#3b82f6", defaultOn: true },
-  enemycamp: { cat: "Bunkers & Outposts", label: "Enemy Camp", icon: "⚔", color: "#ef4444", defaultOn: true },
-  enemyoutpost: { cat: "Bunkers & Outposts", label: "Enemy Outpost", icon: "⚑", color: "#f97316", defaultOn: true },
-  enemylaboroutpost: { cat: "Bunkers & Outposts", label: "Labor Outpost", icon: "⚒", color: "#eab308", defaultOn: true },
+  enemycamp: { cat: "Bunkers & Outposts", label: "Enemy Camp", icon: "⚔", color: "#ef4444", defaultOn: false },
+  enemyoutpost: { cat: "Bunkers & Outposts", label: "Enemy Outpost", icon: "⚑", color: "#f97316", defaultOn: false },
+  enemylaboroutpost: { cat: "Bunkers & Outposts", label: "Labor Outpost", icon: "⚒", color: "#eab308", defaultOn: false },
   secret_door: { cat: "Bunkers & Outposts", label: "Secret Door / Hatch", icon: "🗝", color: "#a855f7", defaultOn: true },
   controlpointhousetseida: { cat: "Bunkers & Outposts", label: "House Control Point", icon: "🏰", color: "#6366f1", defaultOn: true },
 
@@ -37,26 +37,26 @@ export const TYPE_DEFINITIONS = {
   sietch: { cat: "Caves & Exploration", label: "Fremen Sietch", icon: "⛺", color: "#14b8a6", defaultOn: true },
   explorationpointofinterest: { cat: "Caves & Exploration", label: "Point of Interest", icon: "★", color: "#06b6d4", defaultOn: true },
   exploration: { cat: "Caves & Exploration", label: "Exploration Site", icon: "🧭", color: "#0ea5e9", defaultOn: true },
-  intel_point: { cat: "Caves & Exploration", label: "Intel Beacon", icon: "📡", color: "#38bdf8", defaultOn: true },
+  intel_point: { cat: "Caves & Exploration", label: "Intel Beacon", icon: "📡", color: "#38bdf8", defaultOn: false },
 
   // Spice Deposits
   spice_field_large: { cat: "Spice Deposits", label: "Large Spice Field", icon: "✦", color: "#f59e0b", defaultOn: true },
   spice_field_medium: { cat: "Spice Deposits", label: "Medium Spice Field", icon: "✦", color: "#fbbf24", defaultOn: true },
-  spice_field_small: { cat: "Spice Deposits", label: "Small Spice Field", icon: "✧", color: "#fde047", defaultOn: true },
-  flour_sand_field: { cat: "Spice Deposits", label: "Flour Sand Blow", icon: "◬", color: "#d97706", defaultOn: true },
+  spice_field_small: { cat: "Spice Deposits", label: "Small Spice Field", icon: "✧", color: "#fde047", defaultOn: false },
+  flour_sand_field: { cat: "Spice Deposits", label: "Flour Sand Blow", icon: "◬", color: "#d97706", defaultOn: false },
 
   // Crashed Ships & Wrecks
   shipwreck: { cat: "Wrecks & Crashed Ships", label: "Major Shipwreck", icon: "▲", color: "#ef4444", defaultOn: true },
-  small_shipwreck: { cat: "Wrecks & Crashed Ships", label: "Small Shipwreck", icon: "▵", color: "#f87171", defaultOn: true },
-  wreck: { cat: "Wrecks & Crashed Ships", label: "Fuselage Wreckage", icon: "◬", color: "#fb7185", defaultOn: true },
+  small_shipwreck: { cat: "Wrecks & Crashed Ships", label: "Small Shipwreck", icon: "▵", color: "#f87171", defaultOn: false },
+  wreck: { cat: "Wrecks & Crashed Ships", label: "Fuselage Wreckage", icon: "◬", color: "#fb7185", defaultOn: false },
 
   // Water & Facilities
   water_tank: { cat: "Water & Facilities", label: "Water Reservoir Tank", icon: "💧", color: "#06b6d4", defaultOn: true },
-  refinery: { cat: "Water & Facilities", label: "Resource Refinery", icon: "🏭", color: "#f59e0b", defaultOn: true },
+  refinery: { cat: "Water & Facilities", label: "Resource Refinery", icon: "🏭", color: "#f59e0b", defaultOn: false },
   tradingpost: { cat: "Water & Facilities", label: "Trading Post", icon: "⚖", color: "#fbbf24", defaultOn: true },
   taxiservice: { cat: "Water & Facilities", label: "Ornithopter Taxi", icon: "✈", color: "#38bdf8", defaultOn: true },
-  sandbike: { cat: "Water & Facilities", label: "Sandbike Depot", icon: "🏍", color: "#eab308", defaultOn: true },
-  buggy: { cat: "Water & Facilities", label: "Buggy Garage", icon: "🚙", color: "#f97316", defaultOn: true },
+  sandbike: { cat: "Water & Facilities", label: "Sandbike Depot", icon: "🏍", color: "#eab308", defaultOn: false },
+  buggy: { cat: "Water & Facilities", label: "Buggy Garage", icon: "🚙", color: "#f97316", defaultOn: false },
 
   // Trainers & Representatives
   trainersswordmaster: { cat: "Trainers & Guilds", label: "Swordmaster Trainer", icon: "⚔", color: "#8b5cf6", defaultOn: true },
@@ -70,11 +70,11 @@ export const TYPE_DEFINITIONS = {
   barkeepvendor: { cat: "Trainers & Guilds", label: "Barkeep Vendor", icon: "🍺", color: "#a3e635", defaultOn: true },
 
   // Loot & Gear
-  treasure_loot_container: { cat: "Loot & Equipment", label: "Treasure Container", icon: "👑", color: "#eab308", defaultOn: true },
-  ultra_rare: { cat: "Loot & Equipment", label: "Ultra Rare Cache", icon: "💎", color: "#ec4899", defaultOn: true },
-  small_ultra_rare: { cat: "Loot & Equipment", label: "Small Ultra Rare Cache", icon: "💎", color: "#f472b6", defaultOn: true },
-  rare: { cat: "Loot & Equipment", label: "Rare Crate", icon: "💠", color: "#8b5cf6", defaultOn: true },
-  weapon: { cat: "Loot & Equipment", label: "Weapon Locker", icon: "🔫", color: "#f43f5e", defaultOn: true },
+  treasure_loot_container: { cat: "Loot & Equipment", label: "Treasure Container", icon: "👑", color: "#eab308", defaultOn: false },
+  ultra_rare: { cat: "Loot & Equipment", label: "Ultra Rare Cache", icon: "💎", color: "#ec4899", defaultOn: false },
+  small_ultra_rare: { cat: "Loot & Equipment", label: "Small Ultra Rare Cache", icon: "💎", color: "#f472b6", defaultOn: false },
+  rare: { cat: "Loot & Equipment", label: "Rare Crate", icon: "💠", color: "#8b5cf6", defaultOn: false },
+  weapon: { cat: "Loot & Equipment", label: "Weapon Locker", icon: "🔫", color: "#f43f5e", defaultOn: false },
   ammo: { cat: "Loot & Equipment", label: "Ammunition Crate", icon: "⌖", color: "#fb923c", defaultOn: false },
   medical: { cat: "Loot & Equipment", label: "Medical Stash", icon: "✚", color: "#22c55e", defaultOn: false },
   fuel_cells: { cat: "Loot & Equipment", label: "Fuel Cells", icon: "⚡", color: "#eab308", defaultOn: false },

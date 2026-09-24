@@ -87,7 +87,8 @@ class DuneMapApp {
     this.deselectAllBtn.addEventListener("click", () => {
       this.activeTypes.clear();
       this.renderTaxonomy();
-      this.loadMarkers();
+      this.markersData = [];
+      this.renderMarkers();
     });
 
     this.resetDiscoveriesBtn.addEventListener("click", () => {
@@ -278,14 +279,18 @@ class DuneMapApp {
           })
           .join("");
 
-        const catActiveCount = cat.types.filter((t) => this.activeTypes.has(t.type)).length;
-        const isPartiallyOrFullyActive = catActiveCount > 0;
+        const allCatActive = cat.types.every((t) => this.activeTypes.has(t.type));
+        const someCatActive = cat.types.some((t) => this.activeTypes.has(t.type));
+        const isCollapsed = !someCatActive;
 
         return `
-          <div class="category-group" data-cat-idx="${catIdx}">
+          <div class="category-group ${isCollapsed ? "collapsed" : ""}" data-cat-idx="${catIdx}">
             <div class="category-group-header">
               <span class="group-title">${cat.name}</span>
               <div class="group-header-right">
+                <button type="button" class="group-toggle-btn ${someCatActive ? "active" : ""}" data-cat-idx="${catIdx}">
+                  ${allCatActive ? "None" : "All"}
+                </button>
                 <span class="group-count">${cat.totalCount.toLocaleString()}</span>
                 <span class="group-toggle-arrow">▾</span>
               </div>
@@ -298,15 +303,38 @@ class DuneMapApp {
       })
       .join("");
 
-    // Toggle accordions on header click
+    // Toggle accordions on header click (excluding toggle button)
     this.categoriesList.querySelectorAll(".category-group-header").forEach((header) => {
-      header.addEventListener("click", () => {
+      header.addEventListener("click", (e) => {
+        if (e.target.closest(".group-toggle-btn")) return;
         const group = header.closest(".category-group");
         group.classList.toggle("collapsed");
       });
     });
 
-    // Checkbox changes
+    // Group toggle buttons (All / None for a specific group)
+    this.categoriesList.querySelectorAll(".group-toggle-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const catIdx = parseInt(btn.dataset.catIdx, 10);
+        const cat = this.taxonomy.categories[catIdx];
+        if (!cat) return;
+
+        const allActive = cat.types.every((t) => this.activeTypes.has(t.type));
+        cat.types.forEach((t) => {
+          if (allActive) {
+            this.activeTypes.delete(t.type);
+          } else {
+            this.activeTypes.add(t.type);
+          }
+        });
+
+        this.renderTaxonomy();
+        this.loadMarkers();
+      });
+    });
+
+    // Individual checkbox changes
     this.categoriesList.querySelectorAll(".type-checkbox").forEach((cb) => {
       cb.addEventListener("change", (e) => {
         const type = e.target.dataset.type;
@@ -324,9 +352,16 @@ class DuneMapApp {
 
   async loadMarkers() {
     if (!this.currentMapConfig) return;
+
+    if (this.activeTypes.size === 0) {
+      this.markersData = [];
+      this.renderMarkers();
+      return;
+    }
+
     try {
       const typeList = Array.from(this.activeTypes).join(",");
-      const url = `/api/markers/${this.currentMapConfig.id}${typeList ? `?types=${typeList}` : ""}`;
+      const url = `/api/markers/${this.currentMapConfig.id}?types=${encodeURIComponent(typeList)}`;
       const res = await fetch(url);
       this.markersData = await res.json();
       this.renderMarkers();
@@ -339,10 +374,22 @@ class DuneMapApp {
     if (!this.markerLayerGroup || !this.leafletMap) return;
     this.markerLayerGroup.clearLayers();
 
+    if (this.activeTypes.size === 0 && (!this.markersData || this.markersData.filter(m => m.isCustom).length === 0)) {
+      this.discoveryPercent.textContent = "0%";
+      this.discoveryProgressFill.style.width = "0%";
+      this.discoveryCount.textContent = "0 / 0 Discovered";
+      return;
+    }
+
     let totalVisible = 0;
     let totalDiscovered = 0;
 
     const filtered = this.markersData.filter((m) => {
+      // Must be an active type or a custom user marker
+      if (m.type && !this.activeTypes.has(m.type) && !m.isCustom) {
+        return false;
+      }
+
       if (this.searchQuery) {
         const titleMatch = (m.title || "").toLowerCase().includes(this.searchQuery);
         const descMatch = (m.description || "").toLowerCase().includes(this.searchQuery);

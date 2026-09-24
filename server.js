@@ -210,26 +210,40 @@ app.get("/api/taxonomy/:mapId", async (req, res) => {
 // API: Get markers for a map (supports type filtering or default POIs)
 app.get("/api/markers/:mapId", async (req, res) => {
   const { mapId } = req.params;
-  const requestedTypes = req.query.types ? req.query.types.split(",").filter(Boolean) : null;
+  const hasTypesParam = "types" in req.query;
+  const requestedTypes = hasTypesParam
+    ? req.query.types.split(",").map((s) => s.trim()).filter(Boolean)
+    : null;
   const custom = readCustomMarkers().filter((m) => m.mapId === mapId);
 
   try {
     const mapData = await getMapData(mapId);
     if (mapData && mapData.markers && mapData.markers.length > 0) {
-      let markers = mapData.markers;
-      if (requestedTypes && requestedTypes.length > 0) {
-        const typeSet = new Set(requestedTypes);
-        markers = markers.filter((m) => typeSet.has(m.type));
+      let markers = [];
+      if (hasTypesParam) {
+        if (requestedTypes.length > 0) {
+          const typeSet = new Set(requestedTypes);
+          markers = mapData.markers.filter((m) => typeSet.has(m.type));
+        } else {
+          // User explicitly deselected all types
+          markers = [];
+        }
       } else {
-        markers = markers.filter((m) => m.defaultOn);
+        // Initial load without filter param -> only defaultOn markers
+        markers = mapData.markers.filter((m) => m.defaultOn);
       }
-      return res.json([...markers, ...custom]);
+
+      const includeCustom = !hasTypesParam || requestedTypes.includes("custom_pins") || requestedTypes.length > 0;
+      return res.json([...markers, ...(includeCustom ? custom : [])]);
     }
   } catch (err) {
     console.error(`Error loading rich map nodes for ${mapId}:`, err.message);
   }
 
   // Fallback to static defaults
+  if (hasTypesParam && requestedTypes.length === 0) {
+    return res.json([]);
+  }
   const defaults = readDefaultMarkers(mapId);
   res.json([...defaults, ...custom]);
 });
