@@ -6,7 +6,7 @@ services:
     container_name: dune-awakening-map
     restart: unless-stopped
     ports:
-      - "${MAP_PORT:-8080}:8080"
+      - "${MAP_PORT:-8085}:8080"
     volumes:
       # Persistent marker database and user customizations
       - ./data:/app/data

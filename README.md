@@ -52,9 +52,9 @@ docker compose up -d
 ### 3. Open in your browser
 Navigate to:
 ```text
-http://localhost:8080
+http://localhost:8085
 ```
-*(or `http://<your-server-ip>:8080`)*
+*(or `http://<your-server-ip>:8085`)*
 
 ---
 
@@ -73,7 +73,7 @@ services:
     container_name: dune-awakening-map
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8085:8080"
     volumes:
       - dune_map_data:/app/data
       - dune_map_tiles:/app/tiles
@@ -83,13 +83,16 @@ services:
       - NODE_ENV=production
       - OFFLINE_MODE=false
     command: >
-      sh -c "npm install --omit=dev && node server.js"
+      sh -c "apk add --no-cache git &&
+             git clone https://github.com/breeves3622/dune-awakening-map.git . &&
+             npm install --omit=dev &&
+             node server.js"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 10s
 
 volumes:
   dune_map_data:
@@ -104,8 +107,8 @@ volumes:
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `PORT` | `8080` | Port the internal HTTP server listens on |
-| `MAP_PORT` | `8080` | Host port mapped via `docker-compose.yml` |
+| `PORT` | `8080` | Port the internal HTTP server listens on inside the container |
+| `MAP_PORT` | `8085` | Host port mapped via `docker-compose.yml` (change if 8085 is in use) |
 | `OFFLINE_MODE` | `false` | When `true`, only serves locally cached tiles and never reaches out to upstream CDNs |
 | `NODE_ENV` | `production` | Node.js environment mode |
 
